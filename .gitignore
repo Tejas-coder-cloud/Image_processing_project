@@ -1,0 +1,52 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE and Editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Large datasets and archives (Keep repository lightweight for GitHub)
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Ignore raw dataset folders from Git tracking (large image collections)
+# Users can download them using instructions in README
+gtsdb_dataset/
+gtsrb_dataset/
+
+# Keep demo outputs and reports, but ignore massive batch dumps
+outputs/
+.streamlit/
