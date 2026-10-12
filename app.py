@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
 
-from src.config import Stage1Config, Stage2Config
+from src.config import Stage1Config, Stage2Config, DatasetConfig
 from src.pipeline import run_stage1, run_stage2
 
 # Page configuration
@@ -73,8 +73,14 @@ input_mode = st.sidebar.radio(
 )
 
 root_dir = Path(__file__).resolve().parent
-gtsdb_dir = root_dir / "gtsdb_dataset" / "train" / "images"
-gtsrb_dir = root_dir / "gtsrb_dataset" / "Train"
+default_paths = DatasetConfig()
+gtsdb_dir = root_dir / default_paths.gtsdb_dir if not default_paths.gtsdb_dir.is_absolute() else default_paths.gtsdb_dir
+if not gtsdb_dir.exists():
+    gtsdb_dir = root_dir / "gtsdb_dataset" / "train" / "images"
+
+gtsrb_dir = root_dir / default_paths.gtsrb_dir if not default_paths.gtsrb_dir.is_absolute() else default_paths.gtsrb_dir
+if not gtsrb_dir.exists():
+    gtsrb_dir = root_dir / "gtsrb_dataset" / "Train"
 
 image_bgr: Optional[np.ndarray] = None
 image_name: str = "custom_image"

@@ -1,7 +1,9 @@
 """Configuration settings for Stage 1 (Enhancement) and Stage 2 (Color Segmentation)."""
 
 from dataclasses import dataclass, field
-from typing import Tuple
+from pathlib import Path
+from typing import Optional, Tuple
+
 
 
 @dataclass
@@ -58,6 +60,9 @@ class Stage2Config:
     hsv_white_lower: Tuple[int, int, int] = (0, 0, 170)
     hsv_white_upper: Tuple[int, int, int] = (180, 40, 255)
 
+    # Vegetation mask subtraction
+    subtract_vegetation: bool = True
+
     # ======================== CIELAB Thresholds ========================
     # L: 0-255, a: 0-255, b: 0-255 (128 is neutral for a* and b*)
 
@@ -78,6 +83,9 @@ class Stage2Config:
     morph_kernel_size: int = 5
     morph_close_iterations: int = 3
     morph_open_iterations: int = 1
+    # Process color channels independently before candidate extraction to prevent multi-color foliage bridging
+    independent_color_morphology: bool = False
+    nms_iou_threshold: float = 0.40   # Non-maximum suppression IoU threshold when merging multi-color candidate boxes
 
     # ======================== Candidate Shape & Geometry Filtering ========================
     min_area: int = 40                # Minimum contour area (lowered for small distant signs)
@@ -89,16 +97,24 @@ class Stage2Config:
 
     # Circularity: 4*pi*area / perimeter^2 (circle=1.0, irregular shape~0)
     min_circularity: float = 0.15     # Relaxed for triangular and rectangular signs
+    # Circularity mode: 'contour' (original perimeter-based) or 'hull' (convex hull perimeter to handle hollow ring signs)
+    circularity_mode: str = "contour"
     # Convexity: contour area / convex hull area
     min_convexity: float = 0.40       # Signs are convex shapes
 
-    # ======================== Spatial Filters ========================
+    # ======================== Spatial & Vehicle Filters ========================
     max_road_y_ratio: float = 0.88    # Ignore reflections in bottom road asphalt
     min_sky_y_ratio: float = 0.02     # Ignore artifacts at very top edge of frame
+    # Filter 9 vehicle rejection mode: 'current' (baseline hard cutoff), 'alternative' (aspect & size aware), or 'bypass'
+    filter9_mode: str = "current"
+    # Filter 11 maximum allowable area before unconditional background rejection (default 5000)
+    filter11_max_area: int = 5000
 
     # ======================== Color Density Verification ========================
     min_color_density: float = 0.05   # At least 5% of bbox must be sign-colored
+    min_yellow_color_density: Optional[float] = None  # Specific density threshold for yellow candidates if set
     max_color_density: float = 0.95   # If >95%, probably a solid color surface
+
 
     # ======================== Edge-Based Verification ========================
     min_edge_density: float = 0.01    # Minimum edge pixels in bbox region
@@ -108,7 +124,18 @@ class Stage2Config:
     require_sign_structure: bool = True
 
 
+
+@dataclass
+class DatasetConfig:
+    """Configurable dataset and output paths."""
+    gtsdb_dir: Path = field(default_factory=lambda: Path("data") / "TrainIJCNN2013" / "TrainIJCNN2013")
+    gtsdb_gt_file: Path = field(default_factory=lambda: Path("data") / "TrainIJCNN2013" / "TrainIJCNN2013" / "gt.txt")
+    gtsrb_dir: Path = field(default_factory=lambda: Path("data") / "Train")
+    output_dir: Path = field(default_factory=lambda: Path("outputs"))
+
+
 @dataclass
 class PipelineConfig:
     stage1: Stage1Config = field(default_factory=Stage1Config)
     stage2: Stage2Config = field(default_factory=Stage2Config)
+    paths: DatasetConfig = field(default_factory=DatasetConfig)

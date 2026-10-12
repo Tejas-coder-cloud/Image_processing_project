@@ -4,54 +4,57 @@ and produces individual reports plus a multi-image master comparison grid.
 """
 
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import cv2
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.config import PipelineConfig
+from src.config import PipelineConfig, DatasetConfig
 from src.pipeline import run_full_pipeline
 from src.visualizer import plot_pipeline_summary, plot_stage1_report, plot_stage2_report
 
 
-def find_diverse_test_cases() -> List[Tuple[str, Path, str]]:
+def find_diverse_test_cases(dataset_config: Optional[DatasetConfig] = None) -> List[Tuple[str, Path, str]]:
     """Select 10 diverse test cases across sign categories and datasets."""
     root = Path(__file__).resolve().parent
+    paths = dataset_config or DatasetConfig()
     cases: List[Tuple[str, Path, str]] = []
 
     # 1. GTSDB Road Scenes
-    gtsdb_dir = root / "gtsdb_dataset" / "train" / "images"
-    gtsdb_candidates = [
-        ("GTSDB_Speed_Limit_50", "122_jpg*.jpg", "Speed Limit 50 (Red Circular Sign)"),
-        ("GTSDB_Danger_Warning", "108_jpg*.jpg", "Danger / Warning (Red Triangle Sign)"),
-        ("GTSDB_Mandatory_Blue", "102_jpg*.jpg", "Mandatory Blue + Prohibitory"),
-        ("GTSDB_Prohibitory_Highway", "112_jpg*.jpg", "Prohibitory Sign (Highway Day)"),
-        ("GTSDB_Speed_Overpass", "100_jpg*.jpg", "Speed Sign (Overpass Shadow)"),
-        ("GTSDB_Road_Signs", "101_jpg*.jpg", "Road Infrastructure Signs"),
-    ]
+    gtsdb_dir = root / paths.gtsdb_dir if not paths.gtsdb_dir.is_absolute() else paths.gtsdb_dir
+    if not gtsdb_dir.exists():
+        gtsdb_dir = root / "gtsdb_dataset" / "train" / "images"
 
-    for label, pattern, desc in gtsdb_candidates:
-        matches = list(gtsdb_dir.glob(pattern))
-        if matches:
-            cases.append((label, matches[0], desc))
+    if gtsdb_dir.exists():
+        # Check for .ppm images or .jpg images
+        ppms = sorted(list(gtsdb_dir.glob("*.ppm")))
+        jpgs = sorted(list(gtsdb_dir.glob("*.jpg")))
+        if ppms:
+            for p in ppms[:6]:
+                cases.append((f"GTSDB_{p.stem}", p, f"GTSDB Scene {p.name}"))
+        elif jpgs:
+            for p in jpgs[:6]:
+                cases.append((f"GTSDB_{p.stem}", p, f"GTSDB Scene {p.name}"))
 
     # 2. GTSRB Cropped Signs
-    gtsrb_dir = root / "gtsrb_dataset" / "Train"
-    gtsrb_candidates = [
-        ("GTSRB_Speed_20", "0", "Speed Limit 20 km/h (Class 0)"),
-        ("GTSRB_Speed_30", "1", "Speed Limit 30 km/h (Class 1)"),
-        ("GTSRB_Danger_Triangle", "11", "Right-of-Way Danger Triangle (Class 11)"),
-        ("GTSRB_Priority_Yellow", "12", "Priority Road Yellow Diamond (Class 12)"),
-    ]
+    gtsrb_dir = root / paths.gtsrb_dir if not paths.gtsrb_dir.is_absolute() else paths.gtsrb_dir
+    if not gtsrb_dir.exists():
+        gtsrb_dir = root / "gtsrb_dataset" / "Train"
 
-    for label, cls_folder, desc in gtsrb_candidates:
-        c_path = gtsrb_dir / cls_folder
-        if c_path.exists():
-            pngs = list(c_path.glob("*.png"))
-            if pngs:
-                cases.append((label, pngs[0], desc))
+    if gtsrb_dir.exists():
+        for label, cls_folder, desc in [
+            ("GTSRB_Speed_20", "0", "Speed Limit 20 km/h (Class 0)"),
+            ("GTSRB_Speed_30", "1", "Speed Limit 30 km/h (Class 1)"),
+            ("GTSRB_Danger_Triangle", "11", "Right-of-Way Danger Triangle (Class 11)"),
+            ("GTSRB_Priority_Yellow", "12", "Priority Road Yellow Diamond (Class 12)"),
+        ]:
+            c_path = gtsrb_dir / cls_folder
+            if c_path.exists():
+                images = list(c_path.glob("*.png")) + list(c_path.glob("*.ppm"))
+                if images:
+                    cases.append((label, images[0], desc))
 
     return cases
 

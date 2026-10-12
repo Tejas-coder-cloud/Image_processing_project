@@ -130,11 +130,12 @@ def segment_traffic_sign_colors(
     fused_yellow = cv2.bitwise_and(hsv_yellow, lab_yellow)
 
     # Subtract green vegetation areas to reduce false positives from trees/grass
-    vegetation_mask = _create_vegetation_mask(image_hsv)
-    inv_vegetation = cv2.bitwise_not(vegetation_mask)
-    fused_red = cv2.bitwise_and(fused_red, inv_vegetation)
-    fused_blue = cv2.bitwise_and(fused_blue, inv_vegetation)
-    fused_yellow = cv2.bitwise_and(fused_yellow, inv_vegetation)
+    if getattr(cfg, "subtract_vegetation", True):
+        vegetation_mask = _create_vegetation_mask(image_hsv)
+        inv_vegetation = cv2.bitwise_not(vegetation_mask)
+        fused_red = cv2.bitwise_and(fused_red, inv_vegetation)
+        fused_blue = cv2.bitwise_and(fused_blue, inv_vegetation)
+        fused_yellow = cv2.bitwise_and(fused_yellow, inv_vegetation)
 
     mask_combined = cv2.bitwise_or(fused_red, cv2.bitwise_or(fused_blue, fused_yellow))
 

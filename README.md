@@ -164,15 +164,25 @@ python run_pipeline.py --image path/to/your/image.jpg
 python run_batch_gallery.py
 ```
 
-All visual diagnostic reports and output masks are automatically saved to `outputs/` and `outputs/gallery/`.
+### 3. Running Controlled Detection Experiments
 
-### 3. Launching the Interactive Web UI (Streamlit)
+To evaluate the pipeline against ground-truth annotations with strict one-to-one IoU matching at 0.5:
+
+```bash
+# Run Phase B & C controlled comparison (Baseline vs Previous Best vs Proposed Independent Morphology)
+python run_phase_bc_experiments.py
+```
+
+Outputs, per-image CSV metrics, and annotated overlay images (`TP` in green, `FP` in red, `FN` in cyan) are automatically saved to `experiments_phase_bc/`.
+
+### 4. Launching the Interactive Web UI (Streamlit)
 
 Launch the interactive GUI to adjust CLAHE, noise filters, and HSV/LAB threshold sliders in real time:
 
 ```bash
 streamlit run app.py
 ```
+
 
 ---
 

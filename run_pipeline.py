@@ -3,38 +3,45 @@
 import argparse
 from pathlib import Path
 import sys
+from typing import Optional
 import cv2
 
-from src.config import PipelineConfig
+from src.config import PipelineConfig, DatasetConfig
 from src.pipeline import run_full_pipeline
 from src.visualizer import plot_pipeline_summary, plot_stage1_report, plot_stage2_report
 
 
-def find_default_sample(dataset_type: str = "gtsdb") -> Path:
+def find_default_sample(dataset_type: str = "gtsdb", config_paths: Optional[DatasetConfig] = None) -> Path:
     """Find a representative image from GTSDB or GTSRB datasets."""
     root = Path(__file__).resolve().parent
+    paths = config_paths or DatasetConfig()
 
     if dataset_type.lower() == "gtsdb":
-        gtsdb_train = root / "gtsdb_dataset" / "train" / "images"
-        if gtsdb_train.exists():
-            # Prefer 122_jpg which contains a clear Speed Limit 50 sign, cars, and road features
-            preferred = list(gtsdb_train.glob("122_jpg*.jpg"))
-            if preferred:
-                return preferred[0]
-            images = list(gtsdb_train.glob("*.jpg")) + list(gtsdb_train.glob("*.png"))
-            if images:
-                return images[0]
+        search_dirs = [
+            root / paths.gtsdb_dir,
+            paths.gtsdb_dir,
+            root / "gtsdb_dataset" / "train" / "images",
+        ]
+        for d in search_dirs:
+            if d.exists():
+                images = list(d.glob("*.ppm")) + list(d.glob("*.jpg")) + list(d.glob("*.png"))
+                if images:
+                    return images[0]
 
     elif dataset_type.lower() == "gtsrb":
-        gtsrb_train = root / "gtsrb_dataset" / "Train"
-        if gtsrb_train.exists():
-            # Pick a sign from class 0, 1, or 14 (Stop sign)
-            for class_id in ["14", "1", "0", "13"]:
-                c_dir = gtsrb_train / class_id
-                if c_dir.exists():
-                    images = list(c_dir.glob("*.png")) + list(c_dir.glob("*.ppm"))
-                    if images:
-                        return images[0]
+        search_dirs = [
+            root / paths.gtsrb_dir,
+            paths.gtsrb_dir,
+            root / "gtsrb_dataset" / "Train",
+        ]
+        for d in search_dirs:
+            if d.exists():
+                for class_id in ["14", "1", "0", "13"]:
+                    c_dir = d / class_id
+                    if c_dir.exists():
+                        images = list(c_dir.glob("*.png")) + list(c_dir.glob("*.ppm"))
+                        if images:
+                            return images[0]
 
     sys.exit(f"Could not find sample images in {dataset_type} dataset folder.")
 

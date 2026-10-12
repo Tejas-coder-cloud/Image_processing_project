@@ -50,13 +50,25 @@ def apply_morphology(
     return cleaned
 
 
-def _compute_circularity(contour: np.ndarray) -> float:
-    """Compute circularity = 4*pi*area / perimeter^2. Perfect circle = 1.0."""
+def _compute_circularity(contour: np.ndarray, mode: str = "contour") -> float:
+    """Compute circularity.
+
+    Modes:
+    - 'contour': 4*pi*area / perimeter^2 (original boundary perimeter)
+    - 'hull': 4*pi*area / (hull_perimeter^2) or perimeter of convex hull
+      Provides an effective shape measure for annular/ring contours without filling mask pixels.
+    """
     area = cv2.contourArea(contour)
-    perimeter = cv2.arcLength(contour, True)
+    if mode == "hull":
+        hull = cv2.convexHull(contour)
+        perimeter = cv2.arcLength(hull, True)
+    else:
+        perimeter = cv2.arcLength(contour, True)
+
     if perimeter < 1e-6:
         return 0.0
     return (4.0 * np.pi * area) / (perimeter * perimeter)
+
 
 
 def _compute_convexity(contour: np.ndarray) -> float:
@@ -93,21 +105,36 @@ def _is_likely_vehicle_region(
     x: int, y: int, w: int, h: int,
     img_h: int, img_w: int,
     red_mask: Optional[np.ndarray] = None,
+    mode: str = "current",
 ) -> bool:
     """Detect and reject vehicle bodies, taillights, and headlights.
 
-    Vehicles appear in the lower half of the image and tend to be:
-    - Large red blobs (truck bodies, taillights)
-    - Located in the lower 60% of the frame  
-    - Wider than they are tall (vehicle bodies) or very small bright spots (headlights)
-    
-    Real traffic signs are mounted on poles ABOVE the road surface, so they appear
-    in the upper/middle portion of the frame.
+    Modes:
+    - 'current': original strict vertical cutoff
+    - 'alternative': aspect ratio and area-aware vehicle filtering
+    - 'bypass': disables filter 9 completely for diagnostics
     """
+    if mode == "bypass":
+        return False
+
     center_y = y + h / 2.0
     y_ratio = center_y / max(1, img_h)
     area = w * h
+    aspect = float(w) / max(1, h)
 
+    if mode == "alternative":
+        # 1. Massive contiguous vehicle bodies
+        if area > 8000:
+            return True
+        # 2. Distinctly wide horizontal vehicle bodies in lower frame (traffic signs have aspect ~ 1.0)
+        if y_ratio > 0.65 and aspect > 1.4 and area > 500:
+            return True
+        # 3. Road surface reflection near very bottom
+        if y_ratio > 0.80 and area > 1000:
+            return True
+        return False
+
+    # Default 'current' mode:
     # Large red blob in the lower 55% of the frame is likely a vehicle
     if y_ratio > 0.55 and area > 400:
         return True
@@ -121,6 +148,7 @@ def _is_likely_vehicle_region(
         return True
 
     return False
+
 
 
 def _is_traffic_light(image_gray: np.ndarray, x: int, y: int, w: int, h: int) -> bool:
@@ -146,6 +174,7 @@ def _is_traffic_light(image_gray: np.ndarray, x: int, y: int, w: int, h: int) ->
 def _is_large_background_region(
     image_gray: np.ndarray,
     x: int, y: int, w: int, h: int,
+    max_area: int = 5000,
 ) -> bool:
     """Reject large regions that are likely buildings, sky, or road surfaces.
 
@@ -163,7 +192,7 @@ def _is_large_background_region(
     variance = float(np.var(crop))
 
     # Very large regions are almost certainly not traffic signs
-    if area > 5000:
+    if area > max_area:
         return True
 
     # Large regions with extreme variance (noisy textures like foliage)
@@ -175,6 +204,7 @@ def _is_large_background_region(
         return True
 
     return False
+
 
 
 def extract_candidate_regions(
@@ -247,7 +277,8 @@ def extract_candidate_regions(
                 continue
 
         # ---- Filter 5: Circularity ----
-        circularity = _compute_circularity(cnt)
+        circ_mode = getattr(config, "circularity_mode", "contour")
+        circularity = _compute_circularity(cnt, mode=circ_mode)
         if hasattr(config, 'min_circularity') and circularity < config.min_circularity:
             continue
 
@@ -260,10 +291,14 @@ def extract_candidate_regions(
         if combined_mask is not None:
             crop_combined = combined_mask[y:y + h, x:x + w]
             color_density = _compute_color_density(crop_combined, w, h)
-            if hasattr(config, 'min_color_density') and color_density < config.min_color_density:
+            min_cd = config.min_color_density
+            if aux_masks and aux_masks.get("color_channel") == "yellow" and getattr(config, "min_yellow_color_density", None) is not None:
+                min_cd = config.min_yellow_color_density
+            if hasattr(config, 'min_color_density') and color_density < min_cd:
                 continue
             if hasattr(config, 'max_color_density') and color_density > config.max_color_density:
                 continue
+
 
         # ---- Filter 8: Edge density ----
         if image_gray is not None:
@@ -275,7 +310,8 @@ def extract_candidate_regions(
 
         # ---- Filter 9: Vehicle/taillight rejection ----
         if not is_cropped_patch:
-            if _is_likely_vehicle_region(x, y, w, h, img_h, img_w, red_mask):
+            f9_mode = getattr(config, "filter9_mode", "current")
+            if _is_likely_vehicle_region(x, y, w, h, img_h, img_w, red_mask, mode=f9_mode):
                 continue
 
         # ---- Filter 10: Traffic light rejection ----
@@ -285,8 +321,10 @@ def extract_candidate_regions(
 
         # ---- Filter 11: Large background region rejection ----
         if image_gray is not None and not is_cropped_patch:
-            if _is_large_background_region(image_gray, x, y, w, h):
+            f11_max = getattr(config, "filter11_max_area", 5000)
+            if _is_large_background_region(image_gray, x, y, w, h, max_area=f11_max):
                 continue
+
 
         # ---- Filter 12: Structural verification ----
         if config.require_sign_structure and not is_cropped_patch:
@@ -327,7 +365,65 @@ def extract_candidate_regions(
     return bounding_boxes, filtered_contours, verified_mask
 
 
+def non_max_suppression_boxes(
+    boxes: List[Tuple[int, int, int, int]],
+    iou_threshold: float = 0.40,
+) -> List[Tuple[int, int, int, int]]:
+    """Merge or filter overlapping candidate boxes across color channels using Non-Maximum Suppression.
+
+    Args:
+        boxes: List of (x, y, w, h) bounding boxes.
+        iou_threshold: Overlap threshold above which redundant boxes are suppressed.
+
+    Returns:
+        Deduplicated list of (x, y, w, h) bounding boxes.
+    """
+    if not boxes:
+        return []
+
+    # Convert to x1, y1, x2, y2 and compute areas
+    boxes_arr = np.array(boxes, dtype=np.float32)
+    x1 = boxes_arr[:, 0]
+    y1 = boxes_arr[:, 1]
+    w = boxes_arr[:, 2]
+    h = boxes_arr[:, 3]
+    x2 = x1 + w
+    y2 = y1 + h
+    areas = w * h
+
+    # Order boxes: keep smaller/tighter boxes or sort by area
+    # Here sort descending by area so dominant components merge smaller fragments
+    order = areas.argsort()[::-1]
+
+    keep = []
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
+
+        if order.size == 1:
+            break
+
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
+
+        w_inter = np.maximum(0.0, xx2 - xx1)
+        h_inter = np.maximum(0.0, yy2 - yy1)
+        inter = w_inter * h_inter
+
+        union = areas[i] + areas[order[1:]] - inter
+        iou = inter / np.maximum(union, 1e-6)
+
+        # Retain boxes with overlap strictly less than iou_threshold
+        inds = np.where(iou <= iou_threshold)[0]
+        order = order[inds + 1]
+
+    return [boxes[k] for k in keep]
+
+
 def draw_segmentation_overlay(
+
     image_bgr: np.ndarray,
     binary_mask: np.ndarray,
     bounding_boxes: List[Tuple[int, int, int, int]],

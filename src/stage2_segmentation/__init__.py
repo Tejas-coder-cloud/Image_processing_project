@@ -15,6 +15,7 @@ from .morphology import (
     apply_morphology,
     extract_candidate_regions,
     draw_segmentation_overlay,
+    non_max_suppression_boxes,
 )
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "apply_morphology",
     "extract_candidate_regions",
     "draw_segmentation_overlay",
+    "non_max_suppression_boxes",
 ]

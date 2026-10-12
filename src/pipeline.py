@@ -19,7 +19,9 @@ from src.stage2_segmentation import (
     apply_morphology,
     extract_candidate_regions,
     draw_segmentation_overlay,
+    non_max_suppression_boxes,
 )
+
 
 
 def run_stage1(image_bgr: np.ndarray, config: Optional[Stage1Config] = None) -> Dict[str, Any]:
@@ -107,28 +109,63 @@ def run_stage2(enhanced_bgr: np.ndarray, config: Optional[Stage2Config] = None) 
     # Step 3: Multi-color segmentation with vegetation subtraction
     color_masks = segment_traffic_sign_colors(enhanced_bgr, cfg)
 
-    # Step 4: Morphological post-processing (closing first bridges circular border rings)
+    # Step 4: Morphological post-processing
     raw_combined_mask = color_masks["mask_combined"]
-    cleaned_mask = apply_morphology(
-        raw_combined_mask,
-        kernel_size=cfg.morph_kernel_size,
-        close_iters=cfg.morph_close_iterations,
-        open_iters=cfg.morph_open_iterations,
-    )
 
     cleaned_red = apply_morphology(color_masks["mask_red"], cfg.morph_kernel_size, cfg.morph_close_iterations, cfg.morph_open_iterations)
     cleaned_blue = apply_morphology(color_masks["mask_blue"], cfg.morph_kernel_size, cfg.morph_close_iterations, cfg.morph_open_iterations)
     cleaned_yellow = apply_morphology(color_masks["mask_yellow"], cfg.morph_kernel_size, cfg.morph_close_iterations, cfg.morph_open_iterations)
 
-    # Step 5: Multi-criteria bounding box detection with structural verification
-    # Pass enhanced_bgr for edge-based and texture-based analysis
-    bboxes, contours, verified_mask = extract_candidate_regions(
-        cleaned_mask,
-        config=cfg,
-        aux_masks=color_masks,
-        image_shape=(h, w),
-        enhanced_bgr=enhanced_bgr,
-    )
+    if getattr(cfg, "independent_color_morphology", False):
+        # Extract candidates from each color channel independently to prevent multi-color foliage bridging
+        raw_boxes = []
+        all_contours = []
+        for c_name, c_mask in [("red", cleaned_red), ("blue", cleaned_blue), ("yellow", cleaned_yellow)]:
+            c_aux = {
+                "mask_red": color_masks["mask_red"],
+                "mask_blue": color_masks["mask_blue"],
+                "mask_yellow": color_masks["mask_yellow"],
+                "mask_white": color_masks["mask_white"],
+                "mask_combined": c_mask,
+                "color_channel": c_name,
+            }
+
+            c_boxes, c_cnts, _ = extract_candidate_regions(
+                c_mask,
+                config=cfg,
+                aux_masks=c_aux,
+                image_shape=(h, w),
+                enhanced_bgr=enhanced_bgr,
+            )
+            raw_boxes.extend(c_boxes)
+            all_contours.extend(c_cnts)
+
+        # Merge overlapping/redundant boxes across colors using NMS
+        nms_thresh = getattr(cfg, "nms_iou_threshold", 0.40)
+        bboxes = non_max_suppression_boxes(raw_boxes, iou_threshold=nms_thresh)
+        contours = all_contours
+
+        # Build composite verified mask
+        verified_mask = np.zeros_like(raw_combined_mask)
+        cleaned_mask = cv2.bitwise_or(cleaned_red, cv2.bitwise_or(cleaned_blue, cleaned_yellow))
+        for (bx, by, bw, bh) in bboxes:
+            verified_mask[by:by + bh, bx:bx + bw] = cleaned_mask[by:by + bh, bx:bx + bw]
+    else:
+        # Default baseline: morphology on combined mask
+        cleaned_mask = apply_morphology(
+            raw_combined_mask,
+            kernel_size=cfg.morph_kernel_size,
+            close_iters=cfg.morph_close_iterations,
+            open_iters=cfg.morph_open_iterations,
+        )
+        bboxes, contours, verified_mask = extract_candidate_regions(
+            cleaned_mask,
+            config=cfg,
+            aux_masks=color_masks,
+            image_shape=(h, w),
+            enhanced_bgr=enhanced_bgr,
+        )
+
     # Overlay highlights only the verified traffic signs
     overlay = draw_segmentation_overlay(enhanced_bgr, verified_mask, bboxes)
 
