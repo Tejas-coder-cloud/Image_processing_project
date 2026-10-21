@@ -180,14 +180,47 @@ Each overlay shows:
 
 ---
 
+## Pipeline Comparison
+
+### Pipeline 1: Two SVMs (Recommended)
+- **Detection:** Traditional IP → SVM 1 (binary verification)
+- **Recognition:** SVM 2 (multi-class, 43 types)
+- **Detection F1:** 54.35%
+- **Recognition:** 76.00%
+- **Precision:** 66.96%
+- **Recall:** 45.73%
+- **Use case:** Balanced performance with high precision
+
+### Pipeline 2: IP-Only + SVM Recognition (Instructor Requirements)
+- **Detection:** Traditional IP only (NO SVM verification)
+- **Recognition:** SVM (multi-class, 43 types)
+- **Detection F1:** 5.28%
+- **Recognition:** 72.50%
+- **Precision:** 2.79%
+- **Recall:** 48.78%
+- **Use case:** Follows instructor requirements exactly, but with much lower F1
+
+**Command for Pipeline 1 (Two SVMs):**
+```bash
+python main.py validation
+```
+
+**Command for Pipeline 2 (IP-Only):**
+```bash
+python main.py ip_only
+```
+
+---
+
 ## Key Achievements
 
 1. ✅ **Complete pipeline** - Detection + Verification + Recognition
 2. ✅ **Instructor compliance** - Traditional IP for detection, SVM for recognition
-3. ✅ **Two-SVM architecture** - Maintains performance while adding recognition
-4. ✅ **43-class recognition** - Identifies all GTSDB sign types
-5. ✅ **Visual outputs** - Clear overlays showing GT and predictions with class IDs
-6. ✅ **Reproducible** - Fixed configuration, documented pipeline
+3. ✅ **Two pipeline options** - With or without SVM verification
+4. ✅ **Two-SVM architecture** - Maintains performance while adding recognition
+5. ✅ **43-class recognition** - Identifies all GTSDB sign types
+6. ✅ **Visual outputs** - Clear overlays showing GT and predictions with class IDs
+7. ✅ **Reproducible** - Fixed configuration, documented pipeline
 
 ---
 
@@ -218,13 +251,26 @@ Each overlay shows:
 
 ## Conclusion
 
-The final pipeline successfully implements:
+Two pipeline implementations are available:
+
+### Pipeline 1: Two SVMs (Recommended for Production)
 - **Traditional IP detection** (as required by instructor)
-- **SVM-based recognition** (as required by instructor)
-- **Two-SVM architecture** for optimal performance
-- **Complete end-to-end system** with visual outputs
+- **SVM 1 for verification** (reduces false positives)
+- **SVM 2 for recognition** (as required by instructor)
+- **Detection F1:** 54.35%
+- **Recognition Accuracy:** 76.00%
 
-**Final F1 Score:** 54.35% (detection)
-**Recognition Accuracy:** 76.00% (43 classes)
+This architecture balances the instructor's requirements with practical performance considerations by using SVM 1 to filter false positives before recognition.
 
-This architecture balances the instructor's requirements with practical performance considerations.
+### Pipeline 2: IP-Only + SVM Recognition (Instructor Requirements Exactly)
+- **Traditional IP detection** (as required by instructor)
+- **SVM for recognition only** (as required by instructor)
+- **NO SVM verification** (follows instructor exactly)
+- **Detection F1:** 5.28%
+- **Recognition Accuracy:** 72.50%
+
+This follows the instructor's architecture exactly but results in 10x lower F1 score due to massive false positives without verification.
+
+---
+
+**Recommendation:** Use Pipeline 1 (Two SVMs) for practical applications. Discuss Pipeline 2 with instructor if strict architecture compliance is required.
