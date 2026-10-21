@@ -30,12 +30,62 @@ import cv2
 import numpy as np
 
 from src.config import PipelineConfig, DatasetConfig
-from evaluate_and_compare import load_gtsdb_annotations, compute_iou_xywh, draw_overlay
 from src.pipeline import run_stage1
 from src.stage2_segmentation.thresholding import segment_traffic_sign_colors
-from run_phase_l_expc import (
+from src.run_phase_l_expc import (
     process_all_images, evaluate_one_to_one
 )
+
+
+def load_gtsdb_annotations(gt_path):
+    """Load GTSDB annotations from gt.txt file."""
+    annotations = {}
+    with open(gt_path, 'r') as f:
+        for line in f:
+            parts = line.strip().split(';')
+            if len(parts) >= 6:
+                filename = parts[0]
+                left, top, right, bottom = int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4])
+                class_id = int(parts[5])
+                if filename not in annotations:
+                    annotations[filename] = []
+                annotations[filename].append({
+                    'filename': filename,
+                    'left': left,
+                    'top': top,
+                    'right': right,
+                    'bottom': bottom,
+                    'class_id': class_id
+                })
+    return annotations
+
+
+def compute_iou_xywh(box1, box2):
+    """Compute IoU between two boxes in (x, y, w, h) format."""
+    x1, y1, w1, h1 = box1
+    x2, y2, w2, h2 = box2
+    
+    # Convert to (x1, y1, x2, y2)
+    box1_x1, box1_y1, box1_x2, box1_y2 = x1, y1, x1 + w1, y1 + h1
+    box2_x1, box2_y1, box2_x2, box2_y2 = x2, y2, x2 + w2, y2 + h2
+    
+    # Compute intersection
+    inter_x1 = max(box1_x1, box2_x1)
+    inter_y1 = max(box1_y1, box2_y1)
+    inter_x2 = min(box1_x2, box2_x2)
+    inter_y2 = min(box1_y2, box2_y2)
+    
+    if inter_x2 <= inter_x1 or inter_y2 <= inter_y1:
+        return 0.0
+    
+    inter_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
+    
+    # Compute union
+    box1_area = w1 * h1
+    box2_area = w2 * h2
+    union_area = box1_area + box2_area - inter_area
+    
+    return inter_area / union_area if union_area > 0 else 0.0
 
 
 def compute_color_mask_solidity(crop_mask: np.ndarray) -> float:

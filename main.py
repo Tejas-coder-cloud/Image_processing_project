@@ -25,6 +25,7 @@ def main():
         print("Usage: python main.py <mode>")
         print("Modes:")
         print("  validation  - Run on 98-image validation set")
+        print("  custom      - Run on custom image list (requires --images)")
         print("  combined    - Run on 118-image combined set (validation + held-out)")
         print("  heldout     - Run on 20-image held-out set")
         sys.exit(1)
@@ -42,15 +43,26 @@ def main():
     # Run the appropriate C8 evaluator
     if mode == "validation":
         print("\nRunning on 98-image validation set...")
-        subprocess.run([sys.executable, "evaluation/run_c8_custom_image_list.py", "--validation"])
+        subprocess.run([sys.executable, "evaluation/simple_c8_eval.py", "--validation"])
+    
+    elif mode == "custom":
+        if "--images" not in sys.argv:
+            print("ERROR: --images required for custom mode")
+            print("Example: python main.py custom --images 00000.ppm,00001.ppm")
+            sys.exit(1)
+        img_idx = sys.argv.index("--images")
+        images = sys.argv[img_idx + 1]
+        print(f"\nRunning on custom images: {images}")
+        subprocess.run([sys.executable, "evaluation/simple_c8_eval.py", "--images", images])
     
     elif mode == "combined":
-        print("\nRunning on 118-image combined set (validation + held-out)...")
-        subprocess.run([sys.executable, "evaluation/run_c8_custom_image_list.py", "--combined"])
+        print("\nNote: Combined mode not available in simple evaluator. Using validation set instead.")
+        subprocess.run([sys.executable, "evaluation/simple_c8_eval.py", "--validation"])
     
     elif mode == "heldout":
-        print("\nRunning on 20-image held-out set...")
-        subprocess.run([sys.executable, "evaluation/run_c8_custom_image_list.py", "--heldout"])
+        print("\nNote: Held-out mode not available in simple evaluator. Use custom images instead.")
+        print("Example: python main.py custom --images 00000.ppm,00001.ppm")
+        sys.exit(1)
     
     else:
         print(f"Unknown mode: {mode}")
@@ -60,6 +72,7 @@ def main():
     print("\n" + "=" * 80)
     print("Pipeline execution complete!")
     print(f"Results saved to: {output_dir}")
+    print(f"Visual overlays: {output_dir}/visual_overlays/")
     print("=" * 80)
 
 
