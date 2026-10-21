@@ -8,8 +8,24 @@ This is a **Traffic Sign Detection** project using classical computer vision (no
 - HOG feature extraction
 - SVM classification
 
+**Current Scope:** Detection + Binary Classification Only
+- ✅ **Detection:** Finds WHERE traffic signs are (bounding boxes)
+- ✅ **Binary Classification:** Distinguishes "sign vs background"
+- ❌ **NOT Implemented:** Multi-class recognition (identifying sign type: stop, speed limit, etc.)
+
 **Current Baseline:** C8 configuration with LAB threshold relaxation
 - **Validation Performance:** Precision 66.96%, Recall 45.73%, F1 54.35%
+
+**What's Missing:** Sign Recognition
+The pipeline currently only outputs bounding boxes with "sign detected" status. It does NOT classify:
+- What type of sign (stop, yield, speed limit, etc.)
+- The specific class ID (GTSDB has 43 different sign classes)
+- Text/symbol recognition
+
+To add recognition, you would need:
+1. A multi-class classifier (SVM with 43 classes, or another approach)
+2. Training on GTSRB dataset (cropped sign images with class labels)
+3. Integration into the pipeline after detection
 
 ---
 
@@ -71,6 +87,13 @@ python models/prepare_training_crops.py
 python models/train_hog_svm.py
 ```
 
+### 4. (Optional) Recognition Dataset
+**For future sign recognition work:**
+- The project references GTSRB dataset for recognition training
+- GTSRB has 43 sign classes with ~50,000 cropped sign images
+- Not required for current detection-only pipeline
+- Would be needed if implementing multi-class recognition
+
 ---
 
 ## How to Run the Pipeline
@@ -128,6 +151,8 @@ Each PNG overlay shows:
   "svm_used": true
 }
 ```
+
+**Note:** These are **detection metrics** (how well we find signs), NOT recognition metrics (how well we identify sign types). Recognition is not yet implemented.
 
 ---
 
@@ -198,6 +223,47 @@ With the trained model, you should see approximately:
 - **F1:** 51-54%
 
 **Without the SVM model**, performance will be much worse (many false positives).
+
+---
+
+## What Work Is Left (Future Improvements)
+
+The current implementation is **detection-only**. The following features are NOT yet implemented:
+
+### 1. Multi-Class Sign Recognition
+**Status:** ❌ Not implemented
+
+**What's needed:**
+- Multi-class classifier to identify sign types (stop, speed limit, yield, etc.)
+- Training on GTSRB dataset (German Traffic Sign Recognition Benchmark)
+- GTSRB has 43 sign classes with ~50,000 cropped sign images
+- Would output class IDs along with bounding boxes
+
+**Current behavior:**
+- Pipeline outputs: "This is a traffic sign" (binary classification)
+- Missing: "This is a 50 km/h speed limit sign" (multi-class recognition)
+
+### 2. Performance Improvements
+**Potential areas:**
+- Tune LAB/HSV thresholds for different lighting conditions
+- Add more sophisticated geometric filters
+- Improve edge symmetry computation
+- Add temporal filtering for video sequences
+
+### 3. Dataset Expansion
+**Current dataset:** GTSDB (600 full-frame images, 851 annotated signs)
+**Potential additions:**
+- GTSRB for recognition training
+- Custom datasets for specific use cases
+- Synthetic data augmentation
+
+### 4. Evaluation Metrics
+**Current metrics:** Precision, Recall, F1 (binary detection)
+**Potential additions:**
+- Per-class accuracy (for recognition)
+- mAP (mean Average Precision)
+- Confusion matrix
+- ROC curves
 
 ---
 
