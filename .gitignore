@@ -40,13 +40,61 @@ ENV/
 *.zip
 *.tar.gz
 *.rar
-*.7z
+.7z
 
-# Ignore raw dataset folders from Git tracking (large image collections)
-# Users can download them using instructions in README
+# Ignore dataset folders (large image collections)
+data/*.ppm
+data/*.png
+data/*.jpg
+data/*.jpeg
+data/TrainIJCNN2013/
+data/Test/
 gtsdb_dataset/
 gtsrb_dataset/
 
-# Keep demo outputs and reports, but ignore massive batch dumps
+# Ignore model binary files but keep training scripts
+models/*.joblib
+models/*.pkl
+models/hog_svm_v1/
+
+# Ignore evaluation outputs but keep main evaluator
+evaluation/*.csv
+evaluation/*.json
+evaluation/*.md
+
+# Don't ignore source files
+!src/run_phase_*.py
+
+# Ignore results outputs
+results/
+
+# Ignore experiment outputs and diagnostics
+experiments_*/
+experiments_color_morphology/
+experiments_filter9/
+experiments_suite/
+experiments_phase_*/
+investigation_*/
+results_*/
 outputs/
 .streamlit/
+
+# Ignore temporary and diagnostic scripts
+analyze_*.py
+audit_*.py
+diagnose_*.py
+evaluate_*.py
+investigation_*.py
+load_*.py
+prepare_*.py
+run_*.py
+scratch_*.py
+test_*.py
+verify_*.py
+
+# Ignore historical experiment scripts in scripts/experiments/
+scripts/experiments/
+scripts/diagnostics/
+
+# Ignore diagnostics folder
+diagnostics/

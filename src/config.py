@@ -66,14 +66,14 @@ class Stage2Config:
     # ======================== CIELAB Thresholds ========================
     # L: 0-255, a: 0-255, b: 0-255 (128 is neutral for a* and b*)
 
-    # Red in LAB: a* >= 140 ensures distinct red chrominance
-    lab_red_lower: Tuple[int, int, int] = (20, 140, 100)
+    # Red in LAB: a* >= 130 ensures distinct red chrominance (C8 baseline)
+    lab_red_lower: Tuple[int, int, int] = (20, 130, 100)
     lab_red_upper: Tuple[int, int, int] = (255, 255, 255)
 
-    # Blue in LAB: b* <= 115 (blue = low b*)
+    # Blue in LAB: b* <= 155 (blue = low b*) (C8 baseline)
     # Measured from actual blue sign pixels: b ranges 88-124
     lab_blue_lower: Tuple[int, int, int] = (20, 60, 20)
-    lab_blue_upper: Tuple[int, int, int] = (230, 145, 115)
+    lab_blue_upper: Tuple[int, int, int] = (230, 145, 155)
 
     # Yellow in LAB: b* >= 140
     lab_yellow_lower: Tuple[int, int, int] = (40, 100, 140)
