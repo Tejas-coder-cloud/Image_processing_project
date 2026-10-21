@@ -42,8 +42,8 @@ def main():
     
     # Run the appropriate C8 evaluator
     if mode == "validation":
-        print("\nRunning on 98-image validation set...")
-        subprocess.run([sys.executable, "evaluation/simple_c8_eval.py", "--validation"])
+        print("\nRunning on 98-image validation set with full C8 pipeline...")
+        subprocess.run([sys.executable, "evaluation/c8_full_eval.py", "--validation"])
     
     elif mode == "custom":
         if "--images" not in sys.argv:
@@ -52,15 +52,15 @@ def main():
             sys.exit(1)
         img_idx = sys.argv.index("--images")
         images = sys.argv[img_idx + 1]
-        print(f"\nRunning on custom images: {images}")
-        subprocess.run([sys.executable, "evaluation/simple_c8_eval.py", "--images", images])
+        print(f"\nRunning on custom images with full C8 pipeline: {images}")
+        subprocess.run([sys.executable, "evaluation/c8_full_eval.py", "--images", images])
     
     elif mode == "combined":
-        print("\nNote: Combined mode not available in simple evaluator. Using validation set instead.")
-        subprocess.run([sys.executable, "evaluation/simple_c8_eval.py", "--validation"])
+        print("\nNote: Combined mode not available. Using validation set instead.")
+        subprocess.run([sys.executable, "evaluation/c8_full_eval.py", "--validation"])
     
     elif mode == "heldout":
-        print("\nNote: Held-out mode not available in simple evaluator. Use custom images instead.")
+        print("\nNote: Held-out mode not available. Use custom images instead.")
         print("Example: python main.py custom --images 00000.ppm,00001.ppm")
         sys.exit(1)
     
