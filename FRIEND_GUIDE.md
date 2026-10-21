@@ -68,19 +68,37 @@ data/TrainIJCNN2013/
 https://sid.erda.net/public/sid/D32E2FCB-7CC9-4903-9B32-2E46969A9DD8/TrainIJCNN2013.zip
 Extract to `data/TrainIJCNN2013/`
 
-### 3. Get the Trained Model
+### 3. Get the Trained Models
 
-**Important:** The repository does NOT include the trained SVM model. You need to obtain it from the project owner or train your own.
+**Important:** The repository does NOT include the trained SVM models. You need to obtain them or train your own.
 
-**Option A: Get the model from the project owner**
-- Ask for the `experiments_phase_n1/hog_svm_v1/` folder
-- Extract it to the project root
+**Two models are required:**
 
-**Option B: Train your own model**
+1. **SVM 1: Binary Verification Model** (for filtering false positives)
+   - Location: `experiments_phase_n1/hog_svm_v1/`
+   - Purpose: Reduce false positives in detection
+   - Used by: Two SVMs pipeline (main.py validation)
+   - NOT used by: IP-only pipeline (main.py ip_only)
+
+2. **SVM 2: Recognition Model** (for identifying sign types)
+   - Location: `models/recognition_svm_v1/`
+   - Purpose: Identify which of 43 sign types each detection is
+   - Used by: Both pipelines
+   - Can be trained (see step 4 below)
+
+**Option A: Get models from the project owner**
+- Ask for `experiments_phase_n1/hog_svm_v1/` folder (SVM 1)
+- Ask for `models/recognition_svm_v1/` folder (SVM 2) OR train it yourself
+- Extract to the project root
+
+**Option B: Train your own models**
 ```bash
-# This requires time and will produce different results
+# Train SVM 1 (binary verification) - requires time
 python models/prepare_training_crops.py
 python models/train_hog_svm.py
+
+# Train SVM 2 (recognition) - always required
+python models/train_recognition_svm.py
 ```
 
 ### 4. Train Recognition SVM (Required for Recognition)
@@ -98,34 +116,72 @@ Training takes several minutes and saves the model to `models/recognition_svm_v1
 
 ## How to Run the Pipeline
 
-### Run on Validation Set (98 images)
+### Pipeline Options
+
+**Option 1: Two SVMs (Recommended)**
+- Traditional IP detection
+- SVM 1: Binary verification (sign vs background)
+- SVM 2: Multi-class recognition (43 sign types)
+- Better performance: F1=54.35%, Recognition=76%
+
 ```bash
+# Run on validation set (98 images)
 python main.py validation
+
+# Run on custom images
+python main.py custom --images 00000.ppm,00001.ppm
 ```
 
-This will:
-- Process 98 validation images
-- Apply the full C8 pipeline (color segmentation → M3_D filtering → SVM)
-- Generate visual overlays
-- Save metrics
+**Option 2: IP-Only + SVM Recognition (Instructor Requirements)**
+- Traditional IP detection only (NO SVM verification)
+- SVM: Multi-class recognition (43 sign types)
+- Follows instructor requirements exactly
+- Lower performance: F1=5.28%, Recognition=72.5%
 
-### Run on Custom Images
 ```bash
-python main.py custom --images 00000.ppm,00001.ppm,00002.ppm
+# Run on validation set (98 images)
+python main.py ip_only
 ```
+
+### What Each Pipeline Does
+
+**Two SVMs (main.py validation):**
+- Traditional IP detection (color + geometry)
+- SVM 1 verification (filters false positives)
+- SVM 2 recognition (identifies sign type)
+- Output: High precision, reasonable recall
+
+**IP-Only (main.py ip_only):**
+- Traditional IP detection (color + geometry)
+- NO SVM verification (all candidates kept)
+- SVM recognition (identifies sign type)
+- Output: Low precision, higher recall (many false positives)
 
 ---
 
 ## What Outputs to Expect
 
-After running the pipeline, check this directory:
+After running the pipeline, check these directories:
 
+**Two SVMs (main.py validation):**
 ```
-results/detection_output/c8_full_eval/
-├── metrics.json              # Overall performance metrics
+results/detection_output/final_pipeline/
+├── metrics.json              # Detection + recognition metrics
 └── visual_overlays/         # PNG images with detection overlays
     ├── 00024.png
     ├── 00042.png
+    └── ... (98 images)
+```
+
+**IP-Only (main.py ip_only):**
+```
+results/detection_output/ip_only_svm_recognition/
+├── metrics.json              # Detection + recognition metrics
+└── visual_overlays/         # PNG images with detection overlays
+    ├── 00024.png
+    ├── 00042.png
+    └── ... (98 images)
+```
     ├── ... (one per image)
     └── 00554.png
 ```
