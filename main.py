@@ -24,7 +24,8 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python main.py <mode>")
         print("Modes:")
-        print("  validation  - Run on 98-image validation set")
+        print("  validation  - Run on 98-image validation set (Two SVMs: verification + recognition)")
+        print("  ip_only     - Run on 98-image validation set (IP detection + SVM recognition only)")
         print("  custom      - Run on custom image list (requires --images)")
         print("  combined    - Run on 118-image combined set (validation + held-out)")
         print("  heldout     - Run on 20-image held-out set")
@@ -44,6 +45,11 @@ def main():
     if mode == "validation":
         print("\nRunning on 98-image validation set with final pipeline (Detection + Verification + Recognition)...")
         subprocess.run([sys.executable, "evaluation/final_pipeline.py", "--validation"])
+    
+    elif mode == "ip_only":
+        print("\nRunning on 98-image validation set with IP-only detection + SVM recognition (NO verification)...")
+        print("NOTE: This follows instructor requirements exactly but has lower F1 score.")
+        subprocess.run([sys.executable, "evaluation/ip_only_svm_recognition.py", "--validation"])
     
     elif mode == "custom":
         if "--images" not in sys.argv:
