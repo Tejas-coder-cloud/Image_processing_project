@@ -40,10 +40,10 @@ def main():
     print("Traffic Sign Detection Pipeline - C8 Baseline")
     print("=" * 80)
     
-    # Run the appropriate C8 evaluator
+    # Run the appropriate evaluator
     if mode == "validation":
-        print("\nRunning on 98-image validation set with full C8 pipeline...")
-        subprocess.run([sys.executable, "evaluation/c8_full_eval.py", "--validation"])
+        print("\nRunning on 98-image validation set with final pipeline (Detection + Verification + Recognition)...")
+        subprocess.run([sys.executable, "evaluation/final_pipeline.py", "--validation"])
     
     elif mode == "custom":
         if "--images" not in sys.argv:
@@ -52,12 +52,12 @@ def main():
             sys.exit(1)
         img_idx = sys.argv.index("--images")
         images = sys.argv[img_idx + 1]
-        print(f"\nRunning on custom images with full C8 pipeline: {images}")
-        subprocess.run([sys.executable, "evaluation/c8_full_eval.py", "--images", images])
+        print(f"\nRunning on custom images with final pipeline: {images}")
+        subprocess.run([sys.executable, "evaluation/final_pipeline.py", "--images", images])
     
     elif mode == "combined":
         print("\nNote: Combined mode not available. Using validation set instead.")
-        subprocess.run([sys.executable, "evaluation/c8_full_eval.py", "--validation"])
+        subprocess.run([sys.executable, "evaluation/final_pipeline.py", "--validation"])
     
     elif mode == "heldout":
         print("\nNote: Held-out mode not available. Use custom images instead.")
